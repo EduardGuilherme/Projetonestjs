@@ -2,9 +2,16 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Recado } from './entities/recado.entity';
 import { CreateRecadoDto } from './dto/create-recado.dto';
 import { UpdateRecadoDto } from './dto/update-recado.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class RecadosService {
+
+  constructor(
+    @InjectRepository(Recado)
+    private readonly recadoRepository: Repository<Recado>, 
+  ) {}
   private lastId = 1;
   private recados: Recado[] = [
     {
@@ -19,12 +26,20 @@ export class RecadosService {
   notFoundException() {
     throw new NotFoundException("Recado não encontrado!")
   }
-  findAll() {
-    return this.recados;
+  async findAll() {
+
+    const recado = await this.recadoRepository.find();
+    return recado;
+    //return this.recados;
   }
 
-  findOne(id: string) {
-    const recado = this.recados.find(item => item.id === +id);
+  async findOne(id: number) {
+    //const recado = this.recados.find(item => item.id === id);
+    const recado = await this.recadoRepository.findOne({
+      where:{
+        id,
+      },
+    });
 
     if (!recado)
       return this.notFoundException();
@@ -46,9 +61,9 @@ export class RecadosService {
     return novoRecado;
   }
 
-  update(id: string, updateRecadoDto: UpdateRecadoDto) {
+  update(id: number, updateRecadoDto: UpdateRecadoDto) {
     const recadoExistenteIndex = this.recados.findIndex(
-      item => item.id === +id,
+      item => item.id === id,
     );
     if (recadoExistenteIndex < 0) {
       return this.notFoundException();
@@ -63,9 +78,9 @@ export class RecadosService {
     return this.recados[recadoExistenteIndex];
   }
 
-  remove(id: string) {
+  remove(id: number) {
     const recadoExistenteIndex = this.recados.findIndex(
-      item => item.id === +id,
+      item => item.id === id,
     );
     if (recadoExistenteIndex < 0) {
       return this.notFoundException();

@@ -4,31 +4,38 @@ import { CreateRecadoDto } from './dto/create-recado.dto';
 import { UpdateRecadoDto } from './dto/update-recado.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { PessoasService } from 'src/pessoas/pessoas.service';
 
 @Injectable()
 export class RecadosService {
-
   constructor(
     @InjectRepository(Recado)
-    private readonly recadoRepository: Repository<Recado>, 
+    private readonly recadoRepository: Repository<Recado>,
+    private readonly pessoasService: PessoasService
   ) {}
-  private lastId = 1;
-  private recados: Recado[] = [
-    {
-      id: 1,
-      texto: 'Este é um recado de teste',
-      de: 'Joana',
-      para: 'João',
-      lido: false,
-      data: new Date(),
-    },
-  ];
+  
   notFoundException() {
-    throw new NotFoundException("Recado não encontrado!")
+    throw new NotFoundException('Recado não encontrado!');
   }
   async findAll() {
-
-    const recado = await this.recadoRepository.find();
+    const recado = await this.recadoRepository.find(
+      {
+        relations: ['de', 'para'],
+        order: {
+          id: 'desc',
+        },
+        select: {
+          de: {
+            id: true,
+            nome: true,
+          },
+          para: {
+            id: true,
+            nome: true,
+          },
+        },
+      }
+    );
     return recado;
     //return this.recados;
   }
@@ -36,26 +43,58 @@ export class RecadosService {
   async findOne(id: number) {
     //const recado = this.recados.find(item => item.id === id);
     const recado = await this.recadoRepository.findOne({
-      where:{
+      where: {
         id,
+      },
+      relations: ['de', 'para'],
+      order: {
+        id: 'desc',
+      },
+      select: {
+        de: {
+          id: true,
+          nome: true,
+        },
+        para: {
+          id: true,
+          nome: true,
+        },
       },
     });
 
-    if (!recado)
-      return this.notFoundException();
+    if (!recado) return this.notFoundException();
 
     return recado;
   }
 
-  create(createRecadoDto: CreateRecadoDto) {
+  async create(createRecadoDto: CreateRecadoDto) {
+    const { texto,deId, paraId } = createRecadoDto;
+    // Encontrar a pessoa que está criando o recado
+    const de = await this.pessoasService.findOne(deId);
+    // Encontrar a pessoa para quem o recado está sendo enviado
+    const para = await this.pessoasService.findOne(paraId);
+
+    console.log({ texto,de, para });
+
     const novoRecado = {
-      ...createRecadoDto,
+      texto,
+      de,
+      para,
       lido: false,
       data: new Date(),
     };
-    const recado = this.recadoRepository.create(novoRecado);
 
-    return this.recadoRepository.save(recado);
+    const recado = await this.recadoRepository.create(novoRecado);
+    await this.recadoRepository.save(recado);
+    return {
+      ...recado,
+      de: {
+        id: recado.de.id,
+      },
+      para: {
+        id: recado.para.id,
+      },
+    };
   }
 
   async update(id: number, updateRecadoDto: UpdateRecadoDto) {
@@ -73,14 +112,14 @@ export class RecadosService {
     await this.recadoRepository.save(recado);
   }
 
- async remove(id: number) {
+  async remove(id: number) {
     const recadoExistenteIndex = await this.recadoRepository.findOneBy({
       id,
     });
     if (recadoExistenteIndex === null) {
       return this.notFoundException();
     }
-      
-    return this.recadoRepository.remove(recadoExistenteIndex)
+
+    return this.recadoRepository.remove(recadoExistenteIndex);
   }
 }

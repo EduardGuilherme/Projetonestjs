@@ -7,19 +7,22 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { RecadosService } from './recados.service';
 import { CreateRecadoDto } from './dto/create-recado.dto';
 import { UpdateRecadoDto } from './dto/update-recado.dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @Controller('recados')
 export class RecadosController {
   constructor(private readonly recadosService: RecadosService) {}
 
   @Get()
-  findAll() {
+  async findAll(@Query() paginationDto: PaginationDto) {
     //return 'retorna todos';
-    return this.recadosService.findAll();
+    const recados = this.recadosService.findAll(paginationDto); 
+    return recados;
   }
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
